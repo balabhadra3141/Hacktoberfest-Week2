@@ -1,0 +1,149 @@
+// UdhaarOS Prisma Schema
+// All monetary values stored in integer paise (1 INR = 100 paise)
+// Balance Formula: outstanding = SUM(CREDIT amounts) - SUM(PAYMENT amounts) + SUM(ADJUSTMENT amounts)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model BusinessProfile {
+  id            String   @id @default(uuid())
+  name          String   @default("My Business")
+  phone         String?
+  address       String?
+  currency      String   @default("INR")
+  currencySymbol String  @default("₹")
+  defaultDueDays Int     @default(30)
+  defaultCreditLimitPaise Int? 
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Customer {
+  id                  String   @id @default(uuid())
+  name                String
+  phone               String?
+  address             String?
+  notes               String?
+  creditLimitPaise    Int?
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  transactions        LedgerTransaction[]
+  reminderHistories   ReminderHistory[]
+  importCandidates    ImportCandidate[]
+
+  @@index([name])
+  @@index([phone])
+  @@index([isActive])
+}
+
+model LedgerTransaction {
+  id                String   @id @default(uuid())
+  customerId        String
+  type              String   // CREDIT, PAYMENT, ADJUSTMENT, REVERSAL
+  amountPaise       Int      // Always positive; type determines direction
+  date              DateTime
+  description       String
+  referenceNumber   String?
+  dueDate           DateTime?
+  source            String   @default("MANUAL") // MANUAL, IMPORTED, AI_ASSISTED
+  status            String   @default("POSTED") // POSTED, REVERSED
+  reversalReason    String?
+  adjustmentReason  String?
+  originalTransactionId String?
+  importBatchId     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  customer          Customer @relation(fields: [customerId], references: [id])
+  importBatch       ImportBatch? @relation(fields: [importBatchId], references: [id])
+
+  @@index([customerId])
+  @@index([date])
+  @@index([type])
+  @@index([status])
+  @@index([importBatchId])
+}
+
+model ImportBatch {
+  id            String   @id @default(uuid())
+  source        String   // TEXT, IMAGE, CSV
+  rawInput      String?  // Original text (not full images)
+  ocrText       String?
+  modelUsed     String?
+  status        String   @default("PENDING") // PENDING, REVIEWING, COMPLETED, FAILED
+  totalCandidates Int    @default(0)
+  importedCount   Int    @default(0)
+  rejectedCount   Int    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  candidates    ImportCandidate[]
+  transactions  LedgerTransaction[]
+}
+
+model ImportCandidate {
+  id                String   @id @default(uuid())
+  importBatchId     String
+  customerName      String
+  customerId        String?  // Matched customer, if resolved
+  type              String   // CREDIT, PAYMENT
+  amountPaise       Int
+  date              DateTime
+  description       String
+  confidence        Float    @default(0.5)
+  needsReview       Boolean  @default(true)
+  evidence          String?  // Source text snippet
+  status            String   @default("PENDING") // PENDING, ACCEPTED, REJECTED, IMPORTED
+  validationErrors  String?  // JSON array of errors
+  duplicateOf       String?  // ID of potential duplicate transaction
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  importBatch       ImportBatch @relation(fields: [importBatchId], references: [id])
+  customer          Customer?   @relation(fields: [customerId], references: [id])
+
+  @@index([importBatchId])
+  @@index([customerId])
+  @@index([status])
+}
+
+model ReminderHistory {
+  id            String   @id @default(uuid())
+  customerId    String
+  type          String   // WHATSAPP, FORMAL
+  language      String   @default("en")
+  messageText   String
+  amountPaise   Int
+  createdAt     DateTime @default(now())
+
+  customer      Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+}
+
+model AuditEvent {
+  id            String   @id @default(uuid())
+  entityType    String   // CUSTOMER, TRANSACTION, IMPORT, SETTINGS
+  entityId      String
+  action        String   // CREATE, UPDATE, DELETE, REVERSE, IMPORT
+  details       String?  // JSON details
+  createdAt     DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model AppSettings {
+  id            String   @id @default(uuid())
+  key           String   @unique
+  value         String
+  updatedAt     DateTime @updatedAt
+}

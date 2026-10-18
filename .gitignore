@@ -1,0 +1,61 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Production builds
+dist/
+build/
+client/dist/
+server/dist/
+
+# SQLite Database & Migrations
+*.db
+*.db-journal
+server/prisma/*.db
+server/prisma/*.db-journal
+server/prisma/dev.db
+server/prisma/dev.db-journal
+server/prisma/migrations/
+
+# Environment configuration
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+server/.env
+server/.env.local
+client/.env
+client/.env.local
+
+# Preserve example environment templates
+!.env.example
+!server/.env.example
+!client/.env.example
+
+# Uploaded receipts / paper slip images
+server/uploads/*
+!server/uploads/.gitkeep
+
+# Logs & debugging
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor & OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Test coverage & caches
+coverage/
+.turbo/
+.cache/
+.eslintcache
